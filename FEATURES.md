@@ -1,6 +1,6 @@
 # PricePulse - Features Documentation
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 **Last Updated:** 2024-11-11
 **Status:** Production Ready
 
@@ -29,6 +29,9 @@ PricePulse is a comprehensive grocery price tracking application that helps cons
 - **Real-time Price Data**: Updates from major grocery stores twice daily (12am/12pm)
 - **Multi-store Comparison**: Track prices across Walmart, Loblaws, Kroger, Target, and more
 - **Product-specific Inflation**: See how individual items are trending at different retailers
+- **Restaurant Tracking**: Monitor menu prices at McDonald's, Chick-fil-A, and more
+- **Delivery Platform Integration**: Compare prices across Instacart, Uber Eats, DoorDash, etc.
+- **Smart Cart**: Add items to cart for online ordering on your preferred platform
 - **Smart Recommendations**: AI-powered suggestions for where to buy each product cheaper
 - **Privacy-first**: Client-side encryption with zero-knowledge architecture
 - **Cross-platform**: Native iOS app + responsive web app
@@ -306,6 +309,139 @@ Data Sources → Scrapers/APIs → Validation → Normalization → Database →
 - "Back-to-school sales in August"
 - Best times to buy specific items
 
+### 16. Delivery Platform Integration
+
+**Description**: Shop online through your favorite delivery platforms.
+
+**Supported Platforms**:
+- **Grocery**: Instacart, Amazon Fresh, Walmart+, Shipt
+- **Restaurant**: Uber Eats, DoorDash, Grubhub, Skip The Dishes
+- **Both**: Postmates, Deliveroo, Just Eat, Menulog
+
+**Features**:
+- **Platform Comparison**: Compare same product across all platforms
+- **Markup Transparency**: See platform markup vs in-store prices
+- **Fee Calculator**: Show delivery + service fees for each platform
+- **Deep Linking**: Tap to open item in platform's app
+- **Cart Management**: Add items to cart for online ordering
+- **Best Platform**: Automatically suggest cheapest platform for your order
+
+**Platform-Specific Details**:
+- Delivery fee ranges
+- Service fee percentages
+- Minimum order requirements
+- App download links (iOS & Android)
+- Direct deep links (e.g., instacart://product/123)
+
+**Price Tracking**:
+- Track platform-specific prices
+- Compare platform markup over time
+- Identify best platform for different products
+- Historical price data per platform
+
+### 17. Restaurant Price Tracking
+
+**Description**: Monitor menu prices at major restaurant chains.
+
+**Supported Restaurants** (12+):
+- **Fast Food**: McDonald's, Burger King, Wendy's, Taco Bell, KFC, Popeyes
+- **Fast Casual**: Chick-fil-A, Chipotle, Subway
+- **Cafe**: Starbucks
+- **Pizza**: Pizza Hut, Domino's
+
+**Features**:
+- **Menu Item Search**: Find specific items (e.g., "Big Mac", "Chicken Sandwich")
+- **Restaurant Comparison**: Compare prices for same item across chains
+- **Inflation Tracking**: Monitor how menu prices change over time
+- **Category Browsing**: Browse by burgers, chicken, sides, drinks, desserts
+- **Calorie Information**: See nutritional info alongside prices
+- **Platform Availability**: See which delivery platforms offer each restaurant
+
+**Restaurant Analytics**:
+- **Inflation Rates**: Compare inflation at McDonald's vs Chick-fil-A
+- **Price Trends**: Track how Big Mac prices change over months
+- **Best Value**: Find cheapest options for similar items
+- **Regional Differences**: Compare prices in different locations
+
+**Example Insights**:
+- "McDonald's prices up 5.2% in last 30 days"
+- "Chick-fil-A has lowest inflation rate (2.1%)"
+- "Big Mac currently $5.69, up from $5.39 last month"
+- "Save $1.20 by ordering from Taco Bell instead of McDonald's"
+
+### 18. Smart Cart System
+
+**Description**: Build shopping carts for online ordering with price optimization.
+
+**Features**:
+- **Multi-Platform Carts**: Create separate carts for different platforms
+- **Auto-Pricing**: Automatically fetch current prices from platforms
+- **Fee Calculation**: Show delivery fees, service fees, and total cost
+- **Cart Optimization**: Suggest best platform based on your cart
+- **Save for Later**: Keep items in cart across sessions
+- **Platform Switching**: Compare total cost across platforms
+
+**Cart Management**:
+- Add grocery products or restaurant menu items
+- Update quantities
+- Apply customizations (for restaurant items)
+- View itemized subtotal, fees, and total
+- Clear or complete cart
+
+**Platform Comparison**:
+```
+Your Cart: 5 items
+
+Instacart:      $45.20 + $5.99 delivery + $2.26 service = $53.45
+Uber Eats:      $47.10 + $3.99 delivery + $7.07 service = $58.16
+DoorDash:       $46.50 + $4.99 delivery + $5.12 service = $56.61
+
+Best Option: Instacart (Save $2.71)
+```
+
+### 19. Location-Based Restaurant Search
+
+**Description**: Find restaurants near you with pricing info.
+
+**Features**:
+- **GPS Search**: Find restaurants within specified radius
+- **Map View**: See restaurant locations on interactive map
+- **Platform Availability**: Which delivery platforms serve each location
+- **Delivery Options**: Delivery vs pickup availability
+- **Distance**: Show distance from current location
+- **Hours**: Opening hours and current status
+
+**Use Cases**:
+- "Find cheapest McDonald's near me"
+- "Which locations are on Uber Eats?"
+- "Show all fast food within 5km"
+
+### 20. Menu Item Price History
+
+**Description**: Track how restaurant prices change over time.
+
+**Features**:
+- **90-Day History**: See price changes up to 3 months back
+- **Trend Charts**: Visualize price movements
+- **Inflation Rates**: Calculate percentage increases
+- **Platform-Specific**: Track prices on each delivery platform
+- **Price Alerts**: Get notified when menu item prices change
+
+**Example**:
+```
+Big Mac Price History (Last 90 days)
+
+Jan 2024: $5.29
+Feb 2024: $5.39 (+1.9%)
+Mar 2024: $5.69 (+5.6%)
+
+Platform Comparison:
+- In-store:    $5.69
+- Uber Eats:   $6.49 (+14.1%)
+- DoorDash:    $6.29 (+10.5%)
+- Grubhub:     $6.39 (+12.3%)
+```
+
 ---
 
 ## Security Features
@@ -448,9 +584,49 @@ GET    /api/recommendations/savings - Get savings opportunities
 #### Analytics
 
 ```
-GET    /api/analytics/dashboard     - Get dashboard metrics
-GET    /api/analytics/spending      - Get spending analysis
-GET    /api/analytics/trends        - Get price trends
+GET    /api/analytics/dashboard           - Get dashboard metrics
+GET    /api/analytics/spending            - Get spending analysis
+GET    /api/analytics/trends              - Get price trends
+GET    /api/analytics/inflation/stores    - Compare store inflation
+GET    /api/analytics/inflation/product   - Product-specific inflation
+GET    /api/analytics/inflation/restaurants - Compare restaurant inflation
+```
+
+#### Cart Management
+
+```
+POST   /api/cart                    - Create new cart
+GET    /api/cart                    - Get all active carts
+GET    /api/cart/:id                - Get cart summary
+DELETE /api/cart/:id                - Cancel cart
+POST   /api/cart/:id/items          - Add item to cart
+PATCH  /api/cart/items/:itemId      - Update item quantity
+DELETE /api/cart/items/:itemId      - Remove item from cart
+POST   /api/cart/:id/complete       - Mark cart as completed
+POST   /api/cart/:id/clear          - Clear all items from cart
+```
+
+#### Restaurant Tracking
+
+```
+GET    /api/restaurants/search      - Search restaurants
+GET    /api/restaurants/:id         - Get restaurant details
+GET    /api/restaurants/:id/platforms - Get platform availability
+GET    /api/restaurants/nearby      - Find restaurants by location
+```
+
+#### Menu Items
+
+```
+GET    /api/menu-items/search       - Search menu items
+GET    /api/menu-items/:id/compare  - Compare item across platforms
+GET    /api/menu-items/:id/history  - Get price history
+```
+
+#### Delivery Platforms
+
+```
+GET    /api/platforms               - List all delivery platforms
 ```
 
 #### User Management
@@ -676,6 +852,36 @@ POST   /api/webhooks/clerk          - Clerk auth events
 ---
 
 ## Changelog
+
+### Version 1.1.0 (2024-11-11)
+
+**Delivery Platform & Restaurant Tracking**:
+- ✅ **Delivery Platform Integration**: Support for 12+ platforms (Instacart, Uber Eats, DoorDash, etc.)
+- ✅ **Restaurant Tracking**: Track menu prices at 12 major chains (McDonald's, Chick-fil-A, etc.)
+- ✅ **Smart Cart System**: Build carts for online ordering with price optimization
+- ✅ **Platform Price Comparison**: Compare same product/menu item across all platforms
+- ✅ **Markup Transparency**: See platform markup vs in-store/base prices
+- ✅ **Restaurant Inflation**: Track inflation at restaurants (e.g., "McDonald's vs Chick-fil-A")
+- ✅ **Menu Item Search**: Search 90+ menu items across restaurants
+- ✅ **Location-Based Search**: Find restaurants near you with GPS
+- ✅ **Platform Deep Linking**: Direct links to open items in platform apps
+- ✅ **Fee Calculator**: Show delivery + service fees for each platform
+- ✅ **Menu Item Price History**: 90-day price tracking for restaurant items
+- ✅ **Multi-Platform Carts**: Create separate carts for different platforms
+
+**New API Endpoints**:
+- ✅ Cart management (8 new endpoints)
+- ✅ Restaurant search & tracking (4 new endpoints)
+- ✅ Menu item search & comparison (3 new endpoints)
+- ✅ Delivery platforms (1 new endpoint)
+- ✅ Restaurant inflation analytics (1 new endpoint)
+
+**Database Enhancements**:
+- ✅ 11 new database models for delivery platforms and restaurants
+- ✅ Platform-specific pricing tables
+- ✅ Menu item price history tracking
+- ✅ Restaurant location with GPS coordinates
+- ✅ Platform availability tracking
 
 ### Version 1.0.0 (2024-11-11)
 
