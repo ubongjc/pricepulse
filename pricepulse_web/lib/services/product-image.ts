@@ -146,8 +146,8 @@ export class ProductImageService {
         },
       });
     } catch (error) {
-      console.error('Image processing error:', error);
-      throw error;
+      console.error(`Failed to process image from ${imageSource.source}:`, error);
+      // Continue with next image source instead of throwing
     }
   }
 
@@ -204,14 +204,15 @@ export class ProductImageService {
    */
   private async extractDominantColor(imageBuffer: Buffer): Promise<string> {
     try {
-      const { dominant } = await sharp(imageBuffer)
-        .resize(1, 1)
+      const { data } = await sharp(imageBuffer)
+        .resize(1, 1, { fit: 'cover' })
         .raw()
         .toBuffer({ resolveWithObject: true });
 
-      const [r, g, b] = dominant;
+      const [r, g, b] = data;
       return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
     } catch (error) {
+      console.error('Color extraction error:', error);
       return '#E5E7EB'; // Default gray
     }
   }
@@ -228,8 +229,11 @@ export class ProductImageService {
     detail: string;
     full: string;
   }> {
-    // TODO: Implement actual R2 upload
-    // For now, return placeholder URLs
+    // TODO: Implement actual Cloudflare R2 upload
+    // This currently returns placeholder URLs. For production:
+    // 1. Set up Cloudflare R2 bucket and configure credentials in .env
+    // 2. Use @aws-sdk/client-s3 with R2 endpoint to upload image buffers
+    // 3. Return actual public CDN URLs instead of placeholders
 
     const baseUrl = process.env.NEXT_PUBLIC_CDN_URL || '/images/products';
 

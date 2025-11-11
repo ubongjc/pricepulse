@@ -73,10 +73,15 @@ export class SmartRecommendationsService {
         .slice(0, 3)
         .map(([cat]) => cat);
 
+      // Get UPCs from purchase history to exclude already bought products
+      const purchasedUpcs = purchaseHistory
+        .map((item) => item.upc)
+        .filter((upc): upc is string => upc !== null && upc !== undefined);
+
       const categoryProducts = await prisma.product.findMany({
         where: {
           category: { in: topCategories },
-          id: { notIn: purchaseHistory.map((p) => p.productId || '') },
+          upc: { notIn: purchasedUpcs },
         },
         take: 20,
       });

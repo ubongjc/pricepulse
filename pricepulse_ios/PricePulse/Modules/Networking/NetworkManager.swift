@@ -13,7 +13,7 @@ class NetworkManager: ObservableObject {
     private let session: URLSession
     private var authToken: String?
 
-    init(baseURL: String = "http://localhost:3000") {
+    init(baseURL: String = ProcessInfo.processInfo.environment["API_BASE_URL"] ?? "https://api.pricepulse.app") {
         self.baseURL = baseURL
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 30
