@@ -47,6 +47,18 @@ model User {
   watchlist              WatchlistItem[]
   carts                  Cart[]
   platformConnections    PlatformConnection[]
+  achievements           UserAchievement[]
+  savingsStreak          SavingsStreak?
+  preferences            UserPreference?
+  deals                  Deal[]
+  dealLikes              DealLike[]
+  dealComments           DealComment[]
+  dealVerifications      DealVerification[]
+  followers              UserFollow[]        @relation("UserFollowers")
+  following              UserFollow[]        @relation("UserFollowing")
+  reminders              SmartReminder[]
+  purchasePatterns       PurchasePattern[]
+  mealPlans              MealPlan[]
 
   @@index([clerkId])
   @@index([email])
@@ -177,6 +189,7 @@ model Store {
 
   locations         StoreLocation[]
   priceHistory      PriceHistory[]
+  deals             Deal[]
 
   @@index([country])
   @@index([active])
@@ -236,6 +249,12 @@ model Product {
   shoppingListItems ShoppingListItem[]
   platformPrices    ProductPlatformPrice[]
   cartItems         CartItem[]
+  images            ProductImage[]
+  barcodes          BarcodeData[]
+  recipeIngredients RecipeIngredient[]
+  deals             Deal[]
+  patterns          PurchasePattern[]
+  reminders         SmartReminder[]
 
   @@index([upc])
   @@index([name])
@@ -673,4 +692,321 @@ model PlatformConnection {
   @@index([userId])
   @@index([platformId])
   @@index([expiresAt])
+}
+
+// ============================================
+// PRODUCT IMAGES (Multi-source, optimized)
+// ============================================
+
+model ProductImage {
+  id            String    @id @default(cuid())
+  productId     String
+  url           String    // CDN URL
+  thumbnailUrl  String?   // 100x100
+  cardUrl       String?   // 300x300
+  detailUrl     String?   // 600x600
+  fullUrl       String?   // Original
+  source        String    // open_food_facts, instacart, user_upload, ai_generated
+  width         Int
+  height        Int
+  dominantColor String?   // Hex color for loading placeholder
+  isPrimary     Boolean   @default(false)
+  verified      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, isPrimary])
+  @@index([source])
+}
+
+// ============================================
+// GAMIFICATION & ACHIEVEMENTS
+// ============================================
+
+model UserAchievement {
+  id            String    @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime  @default(now())
+  progress      Int       @default(0)
+  isCompleted   Boolean   @default(false)
+  metadata      Json?
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId, isCompleted])
+  @@index([unlockedAt])
+}
+
+model SavingsStreak {
+  id            String    @id @default(cuid())
+  userId        String
+  currentStreak Int       @default(0)
+  longestStreak Int       @default(0)
+  lastSaveDate  DateTime?
+  totalSavings  Decimal   @db.Decimal(10, 2) @default(0)
+  weeksSaved    Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@index([currentStreak])
+}
+
+// ============================================
+// SOCIAL FEATURES
+// ============================================
+
+model Deal {
+  id            String    @id @default(cuid())
+  userId        String
+  productId     String
+  storeId       String
+  price         Decimal   @db.Decimal(10, 2)
+  regularPrice  Decimal?  @db.Decimal(10, 2)
+  savings       Decimal?  @db.Decimal(10, 2)
+  description   String?
+  imageUrl      String?
+  verified      Boolean   @default(false)
+  verifiedBy    Int       @default(0) // Count of verifications
+  expiresAt     DateTime?
+  isActive      Boolean   @default(true)
+  likeCount     Int       @default(0)
+  commentCount  Int       @default(0)
+  shareCount    Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store         Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  likes         DealLike[]
+  comments      DealComment[]
+  verifications DealVerification[]
+
+  @@index([userId])
+  @@index([productId])
+  @@index([storeId])
+  @@index([isActive, expiresAt])
+  @@index([createdAt])
+}
+
+model DealLike {
+  id            String    @id @default(cuid())
+  userId        String
+  dealId        String
+  createdAt     DateTime  @default(now())
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deal          Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dealId])
+  @@index([dealId])
+}
+
+model DealComment {
+  id            String    @id @default(cuid())
+  userId        String
+  dealId        String
+  content       String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deal          Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([dealId])
+  @@index([createdAt])
+}
+
+model DealVerification {
+  id            String    @id @default(cuid())
+  userId        String
+  dealId        String
+  isVerified    Boolean   // true = confirmed, false = disputed
+  createdAt     DateTime  @default(now())
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deal          Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dealId])
+  @@index([dealId])
+}
+
+model UserFollow {
+  id            String    @id @default(cuid())
+  followerId    String
+  followingId   String
+  createdAt     DateTime  @default(now())
+
+  follower      User      @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following     User      @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+// ============================================
+// SMART FEATURES
+// ============================================
+
+model UserPreference {
+  id                    String    @id @default(cuid())
+  userId                String
+  preferredStores       String[]  // Array of store IDs
+  dislikedProducts      String[]  // Products to avoid recommending
+  dietaryRestrictions   String[]  // vegetarian, vegan, gluten_free, etc.
+  allergens             String[]  // peanuts, dairy, etc.
+  brandPreferences      Json?     // Brand loyalty preferences
+  budgetPerWeek         Decimal?  @db.Decimal(10, 2)
+  householdSize         Int?
+  shoppingDays          String[]  // Preferred shopping days
+  notificationSettings  Json?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+}
+
+model SmartReminder {
+  id            String    @id @default(cuid())
+  userId        String
+  productId     String?
+  type          String    // purchase_pattern, running_low, price_drop, expiring, location_based
+  title         String
+  message       String
+  scheduledFor  DateTime
+  sentAt        DateTime?
+  dismissed     Boolean   @default(false)
+  actionTaken   Boolean   @default(false)
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product       Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([userId, scheduledFor])
+  @@index([sentAt])
+  @@index([type])
+}
+
+model PurchasePattern {
+  id                String    @id @default(cuid())
+  userId            String
+  productId         String
+  averageFrequency  Int       // Days between purchases
+  lastPurchaseDate  DateTime
+  nextPredictedDate DateTime?
+  confidence        Decimal   @db.Decimal(5, 2) // 0-100
+  totalPurchases    Int       @default(1)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product           Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([nextPredictedDate])
+}
+
+model Recipe {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  imageUrl      String?
+  prepTime      Int?      // Minutes
+  cookTime      Int?      // Minutes
+  servings      Int?
+  difficulty    String?   // easy, medium, hard
+  cuisine       String?
+  dietaryTags   String[]  // vegetarian, vegan, etc.
+  calories      Int?
+  source        String?   // URL or attribution
+  instructions  Json      // Step-by-step
+  featured      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  ingredients   RecipeIngredient[]
+  mealPlans     MealPlanRecipe[]
+
+  @@index([featured])
+  @@index([cuisine])
+}
+
+model RecipeIngredient {
+  id            String    @id @default(cuid())
+  recipeId      String
+  productId     String?
+  name          String
+  amount        String    // "2 cups", "1 lb", etc.
+  optional      Boolean   @default(false)
+  order         Int       @default(0)
+
+  recipe        Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  product       Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([recipeId])
+  @@index([productId])
+}
+
+model MealPlan {
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  startDate     DateTime
+  endDate       DateTime
+  budgetTarget  Decimal?  @db.Decimal(10, 2)
+  actualSpent   Decimal?  @db.Decimal(10, 2)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipes       MealPlanRecipe[]
+
+  @@index([userId, isActive])
+  @@index([startDate, endDate])
+}
+
+model MealPlanRecipe {
+  id            String    @id @default(cuid())
+  mealPlanId    String
+  recipeId      String
+  scheduledDate DateTime
+  mealType      String    // breakfast, lunch, dinner, snack
+  completed     Boolean   @default(false)
+
+  mealPlan      MealPlan  @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  recipe        Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([mealPlanId, scheduledDate])
+}
+
+// ============================================
+// BARCODE & VISUAL SEARCH
+// ============================================
+
+model BarcodeData {
+  id            String    @id @default(cuid())
+  barcode       String    @unique
+  productId     String?
+  upcType       String    // UPC-A, EAN-13, etc.
+  source        String    // open_food_facts, user_scan, manual
+  verified      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  product       Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([barcode])
+  @@index([productId])
 }

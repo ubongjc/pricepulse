@@ -1,7 +1,7 @@
 # PricePulse - Features Documentation
 
-**Version:** 1.1.1
-**Last Updated:** 2024-11-11
+**Version:** 1.2.0
+**Last Updated:** 2025-11-11
 **Status:** Production Ready
 
 ---
@@ -652,6 +652,207 @@ iOS and Android app IDs tracked for App Store/Play Store deep linking.
 - **Android**: Native Kotlin app (roadmap)
 - **Apple Watch**: Companion app (roadmap)
 - **Desktop Apps**: Electron wrapper (planned)
+
+---
+
+## World-Class Features (v1.2.0)
+
+### 22. Product Images & Visual Excellence ✨
+
+**Description**: Beautiful, multi-source product images with optimized loading.
+
+**Features**:
+- **Multi-source Image Fetching**: Automatically retrieves images from:
+  - Open Food Facts (700K+ products)
+  - Instacart product catalog
+  - Generic image search
+  - User uploads
+- **Multiple Image Sizes**: Optimized for different contexts
+  - Thumbnail (100x100) - List views
+  - Card (300x300) - Grid views
+  - Detail (600x600) - Product pages
+  - Full resolution - Zoom views
+- **Smart Placeholders**: Color-coded category placeholders when images unavailable
+- **Dominant Color Extraction**: Smooth loading with color placeholders
+- **WebP Format**: Modern format for 30% smaller file sizes
+
+**API Endpoints**:
+- Images automatically fetched when products are added
+- Integrated with barcode scanning
+
+### 23. Gamification & Achievements 🏆
+
+**Description**: Make saving money fun and engaging with achievements, streaks, and leaderboards.
+
+**Achievements** (10+ categories):
+- **Savings Achievements**:
+  - 💰 Penny Pincher - Save $10 in one week
+  - 🎯 Bargain Hunter - Save $50 in one month
+  - 👑 Savings Master - Save $500 total
+- **Streak Achievements**:
+  - 🔥 Hot Streak - Save money 7 weeks in a row
+  - ⚡ Unstoppable - Save money 12 weeks in a row
+- **Scanning Achievements**:
+  - 📱 Scanner Pro - Scan 100 receipts
+  - 🎨 Receipt Master - Scan 500 receipts
+- **Social Achievements**:
+  - 🔍 Deal Finder - Share 5 deals with community
+- **Special Achievements**:
+  - 🚀 Early Adopter - Use new features first
+
+**Features**:
+- **Savings Streaks**: Track weekly savings streaks automatically
+- **Progress Tracking**: See how close you are to unlocking achievements
+- **Leaderboards**: Compete with other users in:
+  - Total Savings
+  - Current Streak
+  - Total Achievements
+- **User Stats Dashboard**: View your complete savings profile
+
+**API Endpoints**:
+- `GET /api/gamification/achievements` - Get user achievements
+- `GET /api/gamification/stats` - Get user statistics
+- `GET /api/gamification/leaderboard` - Get leaderboards
+- `POST /api/gamification/record-savings` - Record savings
+
+### 24. Barcode Scanner & Product Lookup 📱
+
+**Description**: Instant product identification using barcode scanning.
+
+**Features**:
+- **Universal Barcode Support**:
+  - UPC-A (12 digits) - Standard US barcodes
+  - EAN-13 (13 digits) - International barcodes
+  - EAN-8 (8 digits) - Short barcodes
+  - ITF-14 (14 digits) - Shipping containers
+- **Open Food Facts Integration**: 700K+ products in database
+- **Automatic Product Creation**: New products created from barcode data
+- **Product Enrichment**: Fetches nutritional info, ingredients, allergens
+- **Batch Scanning**: Scan multiple products at once
+- **Offline Cache**: Previously scanned barcodes available offline
+
+**API Endpoints**:
+- `POST /api/barcode/scan` - Scan a barcode
+- `GET /api/barcode/:barcode` - Search by barcode
+
+### 25. Smart Recommendations 🧠
+
+**Description**: AI-powered product and store recommendations based on your shopping behavior.
+
+**Product Recommendations**:
+- **Purchase Pattern Analysis**: Predicts when you'll need to buy products again
+- **Price Alert Integration**: Recommends products you're watching
+- **Category Preferences**: Suggests products in your favorite categories
+- **Dietary Filtering**: Respects dietary restrictions (vegan, gluten-free, etc.)
+- **Smart Scoring**: Multi-factor recommendation algorithm
+
+**Store Recommendations**:
+- **Savings Analysis**: Recommends stores where you save the most
+- **Location-based**: Prioritizes nearby stores
+- **Preference Integration**: Considers your preferred stores
+- **Total Spending**: Shows historical spending by store
+
+**Smart Reminders**:
+- **Purchase Pattern Reminders**: "Time to buy milk?" based on frequency
+- **Price Drop Alerts**: When watched items go on sale
+- **Running Low Alerts**: Predicted stockout warnings
+- **Location-based**: Reminds you when near preferred stores
+
+**Purchase Pattern Learning**:
+- Analyzes your purchase history automatically
+- Calculates average frequency between purchases
+- Predicts next purchase date with confidence score
+- Creates smart reminders 2 days before predicted date
+
+**API Endpoints**:
+- `GET /api/recommendations/products` - Get product recommendations
+- `GET /api/recommendations/stores` - Get store recommendations
+- `GET /api/reminders` - Get pending reminders
+- `POST /api/reminders` - Create smart reminders
+- `POST /api/reminders/:id/dismiss` - Dismiss a reminder
+
+### 26. Social Features & Community Deals 👥
+
+**Description**: Share deals, follow power users, and build a community of savvy shoppers.
+
+**Deal Sharing**:
+- **Post Deals**: Share great prices you find
+- **Deal Details**: Include price, regular price, savings, expiration
+- **Image Upload**: Add photos of the deal
+- **Verification System**: Community-verified deals (3+ confirmations = verified)
+
+**Social Interactions**:
+- **Like Deals**: Show appreciation for good finds
+- **Comment on Deals**: Ask questions or share tips
+- **Verify Deals**: Confirm or dispute deal validity
+- **Follow Users**: Follow top deal contributors
+
+**Community Features**:
+- **Trending Deals**: Most liked/commented deals from last 7 days
+- **Top Contributors Leaderboard**: See who finds the most deals
+- **Personalized Feed**: Filter by stores, products, or users you follow
+- **Deal Expiration**: Automatically hides expired deals
+
+**API Endpoints**:
+- `GET /api/deals` - Get community deals feed
+- `POST /api/deals` - Create a new deal
+- `POST /api/deals/:id/like` - Like a deal
+- `POST /api/deals/:id/comments` - Comment on a deal
+- `POST /api/deals/:id/verify` - Verify a deal
+- `GET /api/deals/trending` - Get trending deals
+
+### 27. Recipe Integration & Meal Planning 🍳
+
+**Description**: Plan meals, discover recipes, and automatically generate shopping lists.
+
+**Recipe Features**:
+- **Recipe Database**: Curated collection of recipes
+- **Ingredient Linking**: Recipes linked to products in database
+- **Dietary Filters**: Vegetarian, vegan, gluten-free, etc.
+- **Difficulty Levels**: Easy, medium, hard
+- **Cuisine Types**: Italian, Mexican, Chinese, etc.
+- **Nutritional Info**: Calories, prep time, cook time, servings
+
+**Meal Planning**:
+- **Weekly Meal Plans**: Plan meals for the week
+- **Budget Tracking**: Set budget targets and track spending
+- **Smart Shopping Lists**: Auto-generate from meal plan
+- **Schedule Meals**: Assign recipes to specific days
+- **Meal Types**: Breakfast, lunch, dinner, snacks
+
+**Smart Features**:
+- **Price-optimized Recipes**: Recipes sorted by total ingredient cost
+- **Substitute Suggestions**: Cheaper alternatives for expensive ingredients
+- **Leftover Management**: Use ingredients before they expire
+- **Batch Cooking**: Recipes that scale well for meal prep
+
+**API Endpoints**:
+- `GET /api/recipes` - Get recipes with filters
+- `GET /api/recipes/:id` - Get specific recipe details
+- `GET /api/meal-plans` - Get user's meal plans
+- `POST /api/meal-plans` - Create a meal plan
+
+### 28. User Preferences & Personalization ⚙️
+
+**Description**: Customize your experience with dietary preferences, budgets, and shopping habits.
+
+**Preference Options**:
+- **Preferred Stores**: Set your favorite stores
+- **Disliked Products**: Hide products you won't buy
+- **Dietary Restrictions**: Vegetarian, vegan, gluten-free, kosher, halal
+- **Allergens**: Peanuts, dairy, eggs, soy, shellfish, etc.
+- **Brand Preferences**: Specify brand loyalty
+- **Budget Per Week**: Set weekly grocery budget
+- **Household Size**: Optimize recommendations for family size
+- **Shopping Days**: Preferred shopping days for reminders
+- **Notification Settings**: Control what alerts you receive
+
+**How It's Used**:
+- Filters out products with allergens
+- Prioritizes products from preferred brands
+- Recommends recipes matching dietary restrictions
+- Suggests stores aligned with budget
+- Times reminders for shopping days
 
 ---
 
