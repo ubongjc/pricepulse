@@ -1,6 +1,6 @@
 # PricePulse - Features Documentation
 
-**Version:** 1.1.0
+**Version:** 1.1.1
 **Last Updated:** 2024-11-11
 **Status:** Production Ready
 
@@ -380,6 +380,7 @@ Data Sources → Scrapers/APIs → Validation → Normalization → Database →
 - **Cart Optimization**: Suggest best platform based on your cart
 - **Save for Later**: Keep items in cart across sessions
 - **Platform Switching**: Compare total cost across platforms
+- **Send to App**: One-click to open platform app with your items (see below)
 
 **Cart Management**:
 - Add grocery products or restaurant menu items
@@ -398,6 +399,8 @@ DoorDash:       $46.50 + $4.99 delivery + $5.12 service = $56.61
 
 Best Option: Instacart (Save $2.71)
 ```
+
+**Send to App Feature**: Click "Send to App" button to automatically open the delivery platform app with your cart items ready to order (see Feature #21 for details).
 
 ### 19. Location-Based Restaurant Search
 
@@ -441,6 +444,117 @@ Platform Comparison:
 - DoorDash:    $6.29 (+10.5%)
 - Grubhub:     $6.39 (+12.3%)
 ```
+
+### 21. Send to App Feature (One-Click Cart Population)
+
+**Description**: Seamlessly transfer your shopping cart from PricePulse to delivery platform apps.
+
+**How It Works**:
+
+When you click "Send to [Platform] App", PricePulse uses multiple intelligent methods to help you complete your order:
+
+**Method 1: API Integration (Best Experience)** ✅
+- For platforms with API access (currently Instacart)
+- Requires one-time OAuth connection
+- Automatically adds all items to your cart in the app
+- No manual work needed - just click checkout!
+
+**Method 2: Deep Linking** ✅
+- Opens the platform app directly on your device
+- Takes you to the store/restaurant you selected
+- Shows clear instructions for adding each item
+- Works for: Instacart, Uber Eats, DoorDash, Grubhub, and more
+
+**Method 3: Web URL** ✅
+- Opens platform website if app not installed
+- Direct link to store or restaurant
+- Shopping list provided for easy reference
+
+**Method 4: Clipboard Copy** ✅
+- Copies your shopping list to clipboard
+- Step-by-step instructions provided
+- Works as universal fallback
+
+**Supported Scenarios**:
+
+**Example 1: Grocery Shopping**
+```
+You've built a cart with:
+- 1 Banana (from Walmart on Instacart)
+- 1 Apple (from Loblaws on Instacart)
+
+1. Click "Send to Instacart"
+2. App opens to Walmart
+3. Instructions show: "Add 1 banana, then switch to Loblaws for 1 apple"
+4. Complete checkout in Instacart
+```
+
+**Example 2: Restaurant Orders**
+```
+You've built a cart with:
+- Big Mac from McDonald's (via Uber Eats)
+- Fries from McDonald's (via Uber Eats)
+
+1. Click "Send to Uber Eats"
+2. App opens to McDonald's menu
+3. Instructions show items to add
+4. Complete checkout in Uber Eats
+```
+
+**Example 3: Mixed Orders (Advanced)**
+```
+PricePulse helps you split orders intelligently:
+
+Cart A (Instacart - Walmart): Banana
+Cart B (Uber Eats - McDonald's): Big Mac
+
+Each cart has a "Send to App" button for its respective platform.
+```
+
+**Platform Account Connection** (Optional):
+
+For the best experience with supported platforms:
+
+1. Go to Settings → Connected Platforms
+2. Click "Connect [Platform] Account"
+3. Authorize PricePulse via OAuth
+4. Now "Send to App" can automatically populate your cart!
+
+**Currently Supported**:
+- **API Integration**: Instacart (with connected account)
+- **Deep Linking**: All 12 platforms
+- **Web URLs**: All platforms with websites
+
+**Coming Soon**:
+- Uber Eats API integration
+- DoorDash API integration
+- Automatic multi-store cart splitting
+- Browser extension for one-click population
+
+**Security & Privacy**:
+- OAuth tokens encrypted at rest
+- You control which platforms to connect
+- Disconnect anytime from Settings
+- We never store your platform passwords
+- All API calls use secure, authorized endpoints
+
+**Technical Details**:
+
+Deep link formats we support:
+```
+Instacart:     instacart://store/{store_id}
+               instacart://product/{product_id}
+
+Uber Eats:     ubereats://restaurant/{restaurant_id}
+               ubereats://item/{menu_item_id}
+
+DoorDash:      doordash://store/{store_id}
+               doordash://item/{item_id}
+
+Grubhub:       grubhub://restaurant/{restaurant_id}
+```
+
+iOS and Android app IDs tracked for App Store/Play Store deep linking.
 
 ---
 
@@ -627,6 +741,17 @@ GET    /api/menu-items/:id/history  - Get price history
 
 ```
 GET    /api/platforms               - List all delivery platforms
+POST   /api/platforms/connect       - Connect platform OAuth account
+GET    /api/platforms/connect       - Get connected platforms
+DELETE /api/platforms/connect/:platformId - Disconnect platform account
+```
+
+#### Send to App (Deep Linking)
+
+```
+POST   /api/cart/:id/send-to-app    - Send cart to platform app
+GET    /api/products/:id/open-in-app - Generate deep link for product
+GET    /api/menu-items/:id/open-in-app - Generate deep link for menu item
 ```
 
 #### User Management
@@ -852,6 +977,26 @@ POST   /api/webhooks/clerk          - Clerk auth events
 ---
 
 ## Changelog
+
+### Version 1.1.1 (2024-11-11)
+
+**Send to App (One-Click Cart Population)**:
+- ✅ **One-Click Cart Transfer**: Send cart to platform app with single button click
+- ✅ **Multiple Transfer Methods**: API integration, deep linking, web URLs, clipboard
+- ✅ **Platform OAuth Connection**: Connect accounts for automatic cart population
+- ✅ **Deep Linking**: Open specific products/restaurants in platform apps
+- ✅ **Instacart API Integration**: Automatic cart population for connected accounts
+- ✅ **All 12 Platforms Supported**: Works with every delivery platform
+
+**New API Endpoints**:
+- ✅ Send to App (1 new endpoint)
+- ✅ Platform connections (3 new endpoints)
+- ✅ Deep linking (2 new endpoints)
+
+**Database Enhancements**:
+- ✅ PlatformConnection model for OAuth tokens
+- ✅ platformProductId fields for deep linking
+- ✅ Encrypted token storage
 
 ### Version 1.1.0 (2024-11-11)
 

@@ -45,6 +45,8 @@ model User {
   shoppingLists          ShoppingList[]
   budgets                Budget[]
   watchlist              WatchlistItem[]
+  carts                  Cart[]
+  platformConnections    PlatformConnection[]
 
   @@index([clerkId])
   @@index([email])
@@ -393,6 +395,7 @@ model DeliveryPlatform {
   productPlatformPrices ProductPlatformPrice[]
   menuItemPlatformPrices MenuItemPlatformPrice[]
   carts             Cart[]
+  platformConnections PlatformConnection[]
 
   @@index([type])
   @@index([active])
@@ -427,7 +430,9 @@ model ProductPlatformPrice {
   productId         String
   platformId        String
   storeId           String
+  platformProductId String?           // Platform-specific product ID for deep linking
   price             Decimal           @db.Decimal(10, 2)
+  markup            Decimal?          @db.Decimal(10, 2)
   markupPercent     Decimal?          @db.Decimal(5, 2)
   available         Boolean           @default(true)
   recordedAt        DateTime          @default(now())
@@ -436,9 +441,11 @@ model ProductPlatformPrice {
   product           Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
   platform          DeliveryPlatform  @relation(fields: [platformId], references: [id], onDelete: Cascade)
 
+  @@unique([productId, platformId])
   @@index([productId, platformId, recordedAt])
   @@index([platformId])
   @@index([recordedAt])
+  @@index([platformProductId])
 }
 
 // Restaurant chains (McDonald's, Chick-fil-A, etc.)
@@ -554,7 +561,9 @@ model MenuItemPlatformPrice {
   menuItemId        String
   platformId        String
   locationId        String?           // Specific location if price varies
+  platformProductId String?           // Platform-specific menu item ID for deep linking
   price             Decimal           @db.Decimal(10, 2)
+  markup            Decimal?          @db.Decimal(10, 2)
   markupPercent     Decimal?          @db.Decimal(5, 2)
   available         Boolean           @default(true)
   recordedAt        DateTime          @default(now())
@@ -563,9 +572,11 @@ model MenuItemPlatformPrice {
   menuItem          MenuItem          @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
   platform          DeliveryPlatform  @relation(fields: [platformId], references: [id], onDelete: Cascade)
 
+  @@unique([menuItemId, platformId])
   @@index([menuItemId, platformId, recordedAt])
   @@index([platformId])
   @@index([recordedAt])
+  @@index([platformProductId])
 }
 
 // Historical menu item prices (for inflation tracking)
@@ -639,3 +650,27 @@ model CartItem {
   @@index([menuItemId])
 }
 
+
+// OAuth connections to delivery platforms (for API-based cart population)
+model PlatformConnection {
+  id                String            @id @default(cuid())
+  userId            String
+  platformId        String
+  accessToken       String            // Encrypted OAuth access token
+  refreshToken      String?           // Encrypted OAuth refresh token
+  expiresAt         DateTime?         // Token expiration
+  scope             String?           // OAuth scopes granted
+  connectedAt       DateTime          @default(now())
+  lastUsedAt        DateTime?
+  metadata          Json?             // Platform-specific data
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform          DeliveryPlatform  @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platformId])
+  @@index([userId])
+  @@index([platformId])
+  @@index([expiresAt])
+}
