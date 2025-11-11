@@ -1,0 +1,1013 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+enum UserRole {
+  USER
+  PREMIUM
+  ADMIN
+}
+
+enum DataSharingPreference {
+  NONE
+  ANONYMOUS
+  FULL
+}
+
+model User {
+  id                     String                  @id @default(cuid())
+  clerkId                String                  @unique
+  email                  String                  @unique
+  firstName              String?
+  lastName               String?
+  role                   UserRole                @default(USER)
+  dataSharingPreference  DataSharingPreference   @default(ANONYMOUS)
+  stripeCustomerId       String?                 @unique
+  subscriptionStatus     String?
+  subscriptionEndDate    DateTime?
+  postalCode             String?                 // User's primary location
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+
+  receipts               Receipt[]
+  dataExportRequests     DataExportRequest[]
+  priceAlerts            PriceAlert[]
+  shoppingLists          ShoppingList[]
+  budgets                Budget[]
+  watchlist              WatchlistItem[]
+  carts                  Cart[]
+  platformConnections    PlatformConnection[]
+  achievements           UserAchievement[]
+  savingsStreak          SavingsStreak?
+  preferences            UserPreference?
+  deals                  Deal[]
+  dealLikes              DealLike[]
+  dealComments           DealComment[]
+  dealVerifications      DealVerification[]
+  followers              UserFollow[]        @relation("UserFollowers")
+  following              UserFollow[]        @relation("UserFollowing")
+  reminders              SmartReminder[]
+  purchasePatterns       PurchasePattern[]
+  mealPlans              MealPlan[]
+
+  @@index([clerkId])
+  @@index([email])
+  @@index([postalCode])
+}
+
+model Receipt {
+  id                String      @id @default(cuid())
+  userId            String
+  storeName         String
+  storeLocation     String?
+  postalCode        String?
+  transactionDate   DateTime
+  totalAmount       Decimal     @db.Decimal(10, 2)
+  taxAmount         Decimal?    @db.Decimal(10, 2)
+  receiptImageUrl   String?     // Encrypted blob URL in R2
+  receiptImageKey   String?     // Encryption key (stored encrypted by user's key)
+  ocrProcessed      Boolean     @default(false)
+  ocrProcessedAt    DateTime?
+  metadata          Json?       // Additional metadata
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lineItems         LineItem[]
+
+  @@index([userId])
+  @@index([transactionDate])
+  @@index([postalCode])
+  @@index([ocrProcessed])
+}
+
+model LineItem {
+  id                String      @id @default(cuid())
+  receiptId         String
+  productName       String
+  upc               String?
+  quantity          Decimal     @db.Decimal(10, 3)
+  unitSize          String?     // e.g., "500ml", "1kg"
+  unitSizeNormalized Decimal?   @db.Decimal(10, 3) // Normalized to base unit for comparison
+  unitType          String?     // e.g., "ml", "g", "unit"
+  unitPrice         Decimal     @db.Decimal(10, 2)
+  totalPrice        Decimal     @db.Decimal(10, 2)
+  category          String?
+  brand             String?
+  metadata          Json?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  receipt           Receipt     @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+
+  @@index([receiptId])
+  @@index([upc])
+  @@index([productName])
+}
+
+model Benchmark {
+  id                String      @id @default(cuid())
+  postalCode        String
+  upc               String?
+  productName       String?
+  category          String?
+  medianPrice       Decimal     @db.Decimal(10, 2)
+  averagePrice      Decimal     @db.Decimal(10, 2)
+  minPrice          Decimal     @db.Decimal(10, 2)
+  maxPrice          Decimal     @db.Decimal(10, 2)
+  sampleCount       Int
+  unitSize          String?
+  unitSizeNormalized Decimal?   @db.Decimal(10, 3)
+  unitType          String?
+  lastUpdated       DateTime    @default(now())
+  monthYear         String      // Format: "2024-01" for aggregation
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@unique([postalCode, upc, monthYear])
+  @@index([postalCode])
+  @@index([upc])
+  @@index([category])
+  @@index([monthYear])
+}
+
+model DataExportRequest {
+  id                String      @id @default(cuid())
+  userId            String
+  status            String      @default("pending") // pending, processing, completed, failed
+  exportUrl         String?     // Pre-signed URL to download
+  expiresAt         DateTime?
+  requestedAt       DateTime    @default(now())
+  completedAt       DateTime?
+
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+// For tracking feature access and billing entitlements
+model Entitlement {
+  id                String      @id @default(cuid())
+  userId            String
+  feature           String      // e.g., "premium_analytics", "unlimited_receipts"
+  granted           Boolean     @default(true)
+  expiresAt         DateTime?
+  metadata          Json?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@unique([userId, feature])
+  @@index([userId])
+  @@index([feature])
+}
+
+// Store chains (Walmart, Loblaws, etc.)
+model Store {
+  id                String            @id @default(cuid())
+  name              String            @unique
+  slug              String            @unique
+  country           String            // US, CA, UK, AU
+  logo              String?
+  website           String?
+  apiEnabled        Boolean           @default(false)
+  scrapingEnabled   Boolean           @default(false)
+  lastPriceUpdate   DateTime?
+  active            Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  locations         StoreLocation[]
+  priceHistory      PriceHistory[]
+  deals             Deal[]
+
+  @@index([country])
+  @@index([active])
+  @@index([slug])
+}
+
+// Physical store locations
+model StoreLocation {
+  id                String      @id @default(cuid())
+  storeId           String
+  name              String      // e.g., "Walmart Supercenter #1234"
+  address           String
+  city              String
+  state             String?
+  postalCode        String
+  country           String
+  latitude          Decimal     @db.Decimal(10, 8)
+  longitude         Decimal     @db.Decimal(11, 8)
+  phone             String?
+  hours             Json?       // Operating hours
+  active            Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  store             Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+  @@index([postalCode])
+  @@index([latitude, longitude])
+  @@index([active])
+}
+
+// Global product catalog
+model Product {
+  id                String            @id @default(cuid())
+  upc               String?           @unique
+  ean               String?
+  name              String
+  brand             String?
+  category          String?
+  subcategory       String?
+  description       String?
+  imageUrl          String?
+  unitSize          String?
+  unitSizeNormalized Decimal?         @db.Decimal(10, 3)
+  unitType          String?
+  organic           Boolean           @default(false)
+  glutenFree        Boolean           @default(false)
+  vegan             Boolean           @default(false)
+  metadata          Json?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  priceHistory      PriceHistory[]
+  priceAlerts       PriceAlert[]
+  watchlistItems    WatchlistItem[]
+  shoppingListItems ShoppingListItem[]
+  platformPrices    ProductPlatformPrice[]
+  cartItems         CartItem[]
+  images            ProductImage[]
+  barcodes          BarcodeData[]
+  recipeIngredients RecipeIngredient[]
+  deals             Deal[]
+  patterns          PurchasePattern[]
+  reminders         SmartReminder[]
+
+  @@index([upc])
+  @@index([name])
+  @@index([brand])
+  @@index([category])
+}
+
+// Historical prices for products at specific stores
+model PriceHistory {
+  id                String      @id @default(cuid())
+  productId         String
+  storeId           String
+  price             Decimal     @db.Decimal(10, 2)
+  unitPrice         Decimal?    @db.Decimal(10, 4) // Price per standard unit
+  onSale            Boolean     @default(false)
+  salePrice         Decimal?    @db.Decimal(10, 2)
+  availability      String      @default("in_stock") // in_stock, out_of_stock, limited
+  postalCode        String?     // Specific location if available
+  source            String      // receipt, api, scraper, manual
+  confidence        Int         @default(100) // 0-100 confidence score
+  recordedAt        DateTime    @default(now())
+  createdAt         DateTime    @default(now())
+
+  product           Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store             Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([productId, storeId, recordedAt])
+  @@index([productId, recordedAt])
+  @@index([storeId, recordedAt])
+  @@index([postalCode])
+  @@index([recordedAt])
+}
+
+// User price alerts
+model PriceAlert {
+  id                String      @id @default(cuid())
+  userId            String
+  productId         String
+  storeId           String?     // null = all stores
+  alertType         String      // price_drop, price_spike, threshold, back_in_stock
+  threshold         Decimal?    @db.Decimal(10, 2)
+  percentage        Int?        // For percentage-based alerts
+  enabled           Boolean     @default(true)
+  lastTriggered     DateTime?
+  triggerCount      Int         @default(0)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product           Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([productId])
+  @@index([enabled])
+}
+
+// User shopping lists
+model ShoppingList {
+  id                String               @id @default(cuid())
+  userId            String
+  name              String
+  description       String?
+  optimized         Boolean              @default(false)
+  shared            Boolean              @default(false)
+  shareCode         String?              @unique
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items             ShoppingListItem[]
+
+  @@index([userId])
+  @@index([shareCode])
+}
+
+// Items in shopping lists
+model ShoppingListItem {
+  id                String         @id @default(cuid())
+  listId            String
+  productId         String?
+  customName        String?        // For items not in product catalog
+  quantity          Decimal        @db.Decimal(10, 3)
+  unit              String?
+  checked           Boolean        @default(false)
+  notes             String?
+  recommendedStore  String?        // Recommended store slug
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  list              ShoppingList   @relation(fields: [listId], references: [id], onDelete: Cascade)
+  product           Product?       @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([listId])
+  @@index([productId])
+}
+
+// User budgets
+model Budget {
+  id                String      @id @default(cuid())
+  userId            String
+  name              String
+  amount            Decimal     @db.Decimal(10, 2)
+  period            String      // weekly, monthly, yearly
+  category          String?     // null = all categories
+  startDate         DateTime
+  endDate           DateTime?
+  active            Boolean     @default(true)
+  alertThreshold    Int         @default(80) // Alert when X% of budget used
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([active])
+  @@index([startDate, endDate])
+}
+
+// User product watchlist
+model WatchlistItem {
+  id                String      @id @default(cuid())
+  userId            String
+  productId         String
+  notes             String?
+  createdAt         DateTime    @default(now())
+
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product           Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+}
+
+// Delivery platforms (Instacart, Uber Eats, DoorDash, etc.)
+model DeliveryPlatform {
+  id                String                  @id @default(cuid())
+  name              String                  @unique
+  slug              String                  @unique
+  type              String                  // grocery, restaurant, both
+  logo              String?
+  website           String?
+  apiEnabled        Boolean                 @default(false)
+  appScheme         String?                 // Deep link scheme (e.g., "instacart://")
+  iosAppId          String?                 // App Store ID
+  androidPackage    String?                 // Google Play package name
+  deliveryFeeMin    Decimal?                @db.Decimal(10, 2)
+  deliveryFeeMax    Decimal?                @db.Decimal(10, 2)
+  serviceFeePercent Decimal?                @db.Decimal(5, 2)
+  minimumOrder      Decimal?                @db.Decimal(10, 2)
+  active            Boolean                 @default(true)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  storeAvailability StoreAvailability[]
+  restaurantAvailability RestaurantAvailability[]
+  productPlatformPrices ProductPlatformPrice[]
+  menuItemPlatformPrices MenuItemPlatformPrice[]
+  carts             Cart[]
+  platformConnections PlatformConnection[]
+
+  @@index([type])
+  @@index([active])
+  @@index([slug])
+}
+
+// Which stores are available on which platforms
+model StoreAvailability {
+  id                String            @id @default(cuid())
+  storeId           String
+  platformId        String
+  available         Boolean           @default(true)
+  deliveryAvailable Boolean           @default(true)
+  pickupAvailable   Boolean           @default(false)
+  platformStoreId   String?           // Store ID on the platform
+  lastChecked       DateTime          @default(now())
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  store             Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  platform          DeliveryPlatform  @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, platformId])
+  @@index([storeId])
+  @@index([platformId])
+  @@index([available])
+}
+
+// Product prices on delivery platforms (may differ from in-store)
+model ProductPlatformPrice {
+  id                String            @id @default(cuid())
+  productId         String
+  platformId        String
+  storeId           String
+  platformProductId String?           // Platform-specific product ID for deep linking
+  price             Decimal           @db.Decimal(10, 2)
+  markup            Decimal?          @db.Decimal(10, 2)
+  markupPercent     Decimal?          @db.Decimal(5, 2)
+  available         Boolean           @default(true)
+  recordedAt        DateTime          @default(now())
+  createdAt         DateTime          @default(now())
+
+  product           Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  platform          DeliveryPlatform  @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, platformId])
+  @@index([productId, platformId, recordedAt])
+  @@index([platformId])
+  @@index([recordedAt])
+  @@index([platformProductId])
+}
+
+// Restaurant chains (McDonald's, Chick-fil-A, etc.)
+model Restaurant {
+  id                String                  @id @default(cuid())
+  name              String                  @unique
+  slug              String                  @unique
+  category          String                  // fast_food, casual_dining, fine_dining
+  cuisine           String?                 // american, mexican, italian, etc.
+  logo              String?
+  website           String?
+  description       String?
+  priceRange        String?                 // $, $$, $$$, $$$$
+  active            Boolean                 @default(true)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+
+  locations         RestaurantLocation[]
+  menuItems         MenuItem[]
+
+  @@index([category])
+  @@index([cuisine])
+  @@index([active])
+  @@index([slug])
+}
+
+// Physical restaurant locations
+model RestaurantLocation {
+  id                String      @id @default(cuid())
+  restaurantId      String
+  name              String
+  address           String
+  city              String
+  state             String?
+  postalCode        String
+  country           String
+  latitude          Decimal     @db.Decimal(10, 8)
+  longitude         Decimal     @db.Decimal(11, 8)
+  phone             String?
+  hours             Json?
+  hasDelivery       Boolean     @default(true)
+  hasTakeout        Boolean     @default(true)
+  hasDineIn         Boolean     @default(true)
+  active            Boolean     @default(true)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  restaurant        Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  platformAvailability RestaurantAvailability[]
+
+  @@index([restaurantId])
+  @@index([postalCode])
+  @@index([latitude, longitude])
+  @@index([active])
+}
+
+// Which restaurants are on which platforms
+model RestaurantAvailability {
+  id                String              @id @default(cuid())
+  locationId        String
+  platformId        String
+  available         Boolean             @default(true)
+  deliveryAvailable Boolean             @default(true)
+  pickupAvailable   Boolean             @default(false)
+  platformRestaurantId String?          // Restaurant ID on platform
+  deliveryFee       Decimal?            @db.Decimal(10, 2)
+  minimumOrder      Decimal?            @db.Decimal(10, 2)
+  estimatedDeliveryMin Int?             // Minutes
+  lastChecked       DateTime            @default(now())
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  location          RestaurantLocation  @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  platform          DeliveryPlatform    @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@unique([locationId, platformId])
+  @@index([locationId])
+  @@index([platformId])
+  @@index([available])
+}
+
+// Menu items for restaurants
+model MenuItem {
+  id                String              @id @default(cuid())
+  restaurantId      String
+  name              String
+  description       String?
+  category          String?             // burger, chicken, sides, drinks, etc.
+  imageUrl          String?
+  calories          Int?
+  basePrice         Decimal             @db.Decimal(10, 2)
+  size              String?             // small, medium, large
+  available         Boolean             @default(true)
+  popular           Boolean             @default(false)
+  metadata          Json?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  restaurant        Restaurant          @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  platformPrices    MenuItemPlatformPrice[]
+  priceHistory      MenuItemPriceHistory[]
+  cartItems         CartItem[]
+
+  @@index([restaurantId])
+  @@index([name])
+  @@index([category])
+  @@index([available])
+}
+
+// Menu item prices on different platforms
+model MenuItemPlatformPrice {
+  id                String            @id @default(cuid())
+  menuItemId        String
+  platformId        String
+  locationId        String?           // Specific location if price varies
+  platformProductId String?           // Platform-specific menu item ID for deep linking
+  price             Decimal           @db.Decimal(10, 2)
+  markup            Decimal?          @db.Decimal(10, 2)
+  markupPercent     Decimal?          @db.Decimal(5, 2)
+  available         Boolean           @default(true)
+  recordedAt        DateTime          @default(now())
+  createdAt         DateTime          @default(now())
+
+  menuItem          MenuItem          @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  platform          DeliveryPlatform  @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, platformId])
+  @@index([menuItemId, platformId, recordedAt])
+  @@index([platformId])
+  @@index([recordedAt])
+  @@index([platformProductId])
+}
+
+// Historical menu item prices (for inflation tracking)
+model MenuItemPriceHistory {
+  id                String      @id @default(cuid())
+  menuItemId        String
+  restaurantId      String
+  locationId        String?
+  price             Decimal     @db.Decimal(10, 2)
+  source            String      // in_store, uber_eats, doordash, etc.
+  postalCode        String?
+  recordedAt        DateTime    @default(now())
+  createdAt         DateTime    @default(now())
+
+  menuItem          MenuItem    @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@index([menuItemId, recordedAt])
+  @@index([restaurantId, recordedAt])
+  @@index([postalCode])
+  @@index([recordedAt])
+}
+
+// User shopping cart (can be for multiple platforms)
+model Cart {
+  id                String            @id @default(cuid())
+  userId            String
+  platformId        String
+  storeId           String?           // For grocery platforms
+  restaurantId      String?           // For restaurant platforms
+  status            String            @default("active") // active, checked_out, abandoned
+  subtotal          Decimal           @db.Decimal(10, 2) @default(0)
+  deliveryFee       Decimal?          @db.Decimal(10, 2)
+  serviceFee        Decimal?          @db.Decimal(10, 2)
+  tax               Decimal?          @db.Decimal(10, 2)
+  total             Decimal           @db.Decimal(10, 2) @default(0)
+  deliveryAddress   String?
+  estimatedDelivery DateTime?
+  notes             String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform          DeliveryPlatform  @relation(fields: [platformId], references: [id], onDelete: Cascade)
+  items             CartItem[]
+
+  @@index([userId])
+  @@index([platformId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Items in shopping cart
+model CartItem {
+  id                String      @id @default(cuid())
+  cartId            String
+  productId         String?     // For grocery items
+  menuItemId        String?     // For restaurant items
+  quantity          Decimal     @db.Decimal(10, 3)
+  unitPrice         Decimal     @db.Decimal(10, 2)
+  totalPrice        Decimal     @db.Decimal(10, 2)
+  customizations    Json?       // Item customizations/options
+  specialInstructions String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  cart              Cart        @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product           Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
+  menuItem          MenuItem?   @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+
+  @@index([cartId])
+  @@index([productId])
+  @@index([menuItemId])
+}
+
+
+// OAuth connections to delivery platforms (for API-based cart population)
+model PlatformConnection {
+  id                String            @id @default(cuid())
+  userId            String
+  platformId        String
+  accessToken       String            // Encrypted OAuth access token
+  refreshToken      String?           // Encrypted OAuth refresh token
+  expiresAt         DateTime?         // Token expiration
+  scope             String?           // OAuth scopes granted
+  connectedAt       DateTime          @default(now())
+  lastUsedAt        DateTime?
+  metadata          Json?             // Platform-specific data
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform          DeliveryPlatform  @relation(fields: [platformId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, platformId])
+  @@index([userId])
+  @@index([platformId])
+  @@index([expiresAt])
+}
+
+// ============================================
+// PRODUCT IMAGES (Multi-source, optimized)
+// ============================================
+
+model ProductImage {
+  id            String    @id @default(cuid())
+  productId     String
+  url           String    // CDN URL
+  thumbnailUrl  String?   // 100x100
+  cardUrl       String?   // 300x300
+  detailUrl     String?   // 600x600
+  fullUrl       String?   // Original
+  source        String    // open_food_facts, instacart, user_upload, ai_generated
+  width         Int
+  height        Int
+  dominantColor String?   // Hex color for loading placeholder
+  isPrimary     Boolean   @default(false)
+  verified      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, isPrimary])
+  @@index([source])
+}
+
+// ============================================
+// GAMIFICATION & ACHIEVEMENTS
+// ============================================
+
+model UserAchievement {
+  id            String    @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime  @default(now())
+  progress      Int       @default(0)
+  isCompleted   Boolean   @default(false)
+  metadata      Json?
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId, isCompleted])
+  @@index([unlockedAt])
+}
+
+model SavingsStreak {
+  id            String    @id @default(cuid())
+  userId        String
+  currentStreak Int       @default(0)
+  longestStreak Int       @default(0)
+  lastSaveDate  DateTime?
+  totalSavings  Decimal   @db.Decimal(10, 2) @default(0)
+  weeksSaved    Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@index([currentStreak])
+}
+
+// ============================================
+// SOCIAL FEATURES
+// ============================================
+
+model Deal {
+  id            String    @id @default(cuid())
+  userId        String
+  productId     String
+  storeId       String
+  price         Decimal   @db.Decimal(10, 2)
+  regularPrice  Decimal?  @db.Decimal(10, 2)
+  savings       Decimal?  @db.Decimal(10, 2)
+  description   String?
+  imageUrl      String?
+  verified      Boolean   @default(false)
+  verifiedBy    Int       @default(0) // Count of verifications
+  expiresAt     DateTime?
+  isActive      Boolean   @default(true)
+  likeCount     Int       @default(0)
+  commentCount  Int       @default(0)
+  shareCount    Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product       Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  store         Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  likes         DealLike[]
+  comments      DealComment[]
+  verifications DealVerification[]
+
+  @@index([userId])
+  @@index([productId])
+  @@index([storeId])
+  @@index([isActive, expiresAt])
+  @@index([createdAt])
+}
+
+model DealLike {
+  id            String    @id @default(cuid())
+  userId        String
+  dealId        String
+  createdAt     DateTime  @default(now())
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deal          Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dealId])
+  @@index([dealId])
+}
+
+model DealComment {
+  id            String    @id @default(cuid())
+  userId        String
+  dealId        String
+  content       String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deal          Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([dealId])
+  @@index([createdAt])
+}
+
+model DealVerification {
+  id            String    @id @default(cuid())
+  userId        String
+  dealId        String
+  isVerified    Boolean   // true = confirmed, false = disputed
+  createdAt     DateTime  @default(now())
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deal          Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dealId])
+  @@index([dealId])
+}
+
+model UserFollow {
+  id            String    @id @default(cuid())
+  followerId    String
+  followingId   String
+  createdAt     DateTime  @default(now())
+
+  follower      User      @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following     User      @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+// ============================================
+// SMART FEATURES
+// ============================================
+
+model UserPreference {
+  id                    String    @id @default(cuid())
+  userId                String
+  preferredStores       String[]  // Array of store IDs
+  dislikedProducts      String[]  // Products to avoid recommending
+  dietaryRestrictions   String[]  // vegetarian, vegan, gluten_free, etc.
+  allergens             String[]  // peanuts, dairy, etc.
+  brandPreferences      Json?     // Brand loyalty preferences
+  budgetPerWeek         Decimal?  @db.Decimal(10, 2)
+  householdSize         Int?
+  shoppingDays          String[]  // Preferred shopping days
+  notificationSettings  Json?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+}
+
+model SmartReminder {
+  id            String    @id @default(cuid())
+  userId        String
+  productId     String?
+  type          String    // purchase_pattern, running_low, price_drop, expiring, location_based
+  title         String
+  message       String
+  scheduledFor  DateTime
+  sentAt        DateTime?
+  dismissed     Boolean   @default(false)
+  actionTaken   Boolean   @default(false)
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product       Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([userId, scheduledFor])
+  @@index([sentAt])
+  @@index([type])
+}
+
+model PurchasePattern {
+  id                String    @id @default(cuid())
+  userId            String
+  productId         String
+  averageFrequency  Int       // Days between purchases
+  lastPurchaseDate  DateTime
+  nextPredictedDate DateTime?
+  confidence        Decimal   @db.Decimal(5, 2) // 0-100
+  totalPurchases    Int       @default(1)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product           Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([nextPredictedDate])
+}
+
+model Recipe {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  imageUrl      String?
+  prepTime      Int?      // Minutes
+  cookTime      Int?      // Minutes
+  servings      Int?
+  difficulty    String?   // easy, medium, hard
+  cuisine       String?
+  dietaryTags   String[]  // vegetarian, vegan, etc.
+  calories      Int?
+  source        String?   // URL or attribution
+  instructions  Json      // Step-by-step
+  featured      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  ingredients   RecipeIngredient[]
+  mealPlans     MealPlanRecipe[]
+
+  @@index([featured])
+  @@index([cuisine])
+}
+
+model RecipeIngredient {
+  id            String    @id @default(cuid())
+  recipeId      String
+  productId     String?
+  name          String
+  amount        String    // "2 cups", "1 lb", etc.
+  optional      Boolean   @default(false)
+  order         Int       @default(0)
+
+  recipe        Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  product       Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([recipeId])
+  @@index([productId])
+}
+
+model MealPlan {
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  startDate     DateTime
+  endDate       DateTime
+  budgetTarget  Decimal?  @db.Decimal(10, 2)
+  actualSpent   Decimal?  @db.Decimal(10, 2)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipes       MealPlanRecipe[]
+
+  @@index([userId, isActive])
+  @@index([startDate, endDate])
+}
+
+model MealPlanRecipe {
+  id            String    @id @default(cuid())
+  mealPlanId    String
+  recipeId      String
+  scheduledDate DateTime
+  mealType      String    // breakfast, lunch, dinner, snack
+  completed     Boolean   @default(false)
+
+  mealPlan      MealPlan  @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  recipe        Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([mealPlanId, scheduledDate])
+}
+
+// ============================================
+// BARCODE & VISUAL SEARCH
+// ============================================
+
+model BarcodeData {
+  id            String    @id @default(cuid())
+  barcode       String    @unique
+  productId     String?
+  upcType       String    // UPC-A, EAN-13, etc.
+  source        String    // open_food_facts, user_scan, manual
+  verified      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  product       Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([barcode])
+  @@index([productId])
+}
